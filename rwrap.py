@@ -10,8 +10,6 @@ Credits:
 --------
 Initial shell script:
 https://forum.proxmox.com/threads/remote-spice-access-without-using-web-manager.16561/page-3#post-238210
-Remmina password encryption:
-https://github.com/kvaps/keepass-url-overrides/blob/master/remmina/remmina-encode-password.py
 
 '''
 # -*- coding: utf-8 -*-
@@ -19,7 +17,6 @@ https://github.com/kvaps/keepass-url-overrides/blob/master/remmina/remmina-encod
 
 import os
 import getpass
-import re
 import subprocess
 import tempfile
 from argparse import ArgumentParser
@@ -27,13 +24,13 @@ import requests
 
 '''
 TODO:
-* Document everything
-* Create a way to use different SSH username (now root)
+* Add node selection
+* Fix API port selection bug (?)
+* Rewrite docstrings
 '''
 
-
 # CONSTANTS
-DEBUG = True
+DEBUG = False
 
 def main():
     '''Main worker
@@ -63,30 +60,26 @@ def main():
                            vmid=arguments.vmid)
 
     # 4) Get SPICE parameters
-    pve_spice = get_spice_info(api_url=pve_api_url,
+    pve_spice_url = pve_api_url + 'nodes/' + vminfo['node'] +\
+                    '/' + vminfo['type'] + '/' + vminfo['id'] +\
+                    '/spiceproxy'
+
+    pve_spice = get_spice_info(pve_spice_url=pve_spice_url,
                                pve_cookie=pve_cookie,
-                               pve_header=pve_header,
-                               vmnode=vminfo['node'],
-                               vmtype=vminfo['type'],
-                               vmid=vminfo['id'])
+                               pve_header=pve_header,)
+
 
     json_data = pve_spice.json()['data']
-
-    title = json_data['title']
-    host = json_data['host']
-    certificate = json_data['ca']
-    port = json_data['tls-port']
-    password = json_data['password']
     if DEBUG:
-        print(password)
+        print(json_data['password'])
 
-    proxy = json_data['proxy']
-    subject = json_data['host-subject']
 
 
     # 5) Generate connection file
-    connection_file_name = generate_rc_file(title, host, certificate,
-                                            port, password, proxy, subject)
+    connection_file_name = generate_rc_file(json_data['title'], json_data['host'],
+                                            json_data['ca'],json_data['tls-port'],
+                                            json_data['password'], json_data['proxy'],
+                                            json_data['host-subject'])
 
     # 6) Starting Remmina subprocess
     with open(os.devnull, 'w') as devnull:
@@ -246,11 +239,10 @@ def get_node_info(api_url, pve_cookie, vmname=None, vmid=None):
         raise BaseException("VM not found in cluster")
     return vminfo
 
-def get_spice_info(api_url, pve_cookie, pve_header, vmnode, vmtype, vmid):
+def get_spice_info(pve_spice_url, pve_cookie, pve_header):
     '''Gets VM information
 
     '''
-    pve_spice_url = api_url + 'nodes/' + vmnode + '/' + vmtype + '/' + vmid + '/spiceproxy'
     pve_spice = requests.post(pve_spice_url, headers=pve_header, cookies=pve_cookie)
 
     if not pve_spice.ok:
@@ -258,7 +250,8 @@ def get_spice_info(api_url, pve_cookie, pve_header, vmnode, vmtype, vmid):
             status=pve_spice.status_code))
     return pve_spice
 
-def generate_rc_file(title, host, ca, port, password, proxy, subject):
+def generate_rc_file(title, host, cert, port,
+                     password, proxy, subject):
     '''Makes connection file for Remmina
 
     Generates and returns file name of a temporary
@@ -282,9 +275,9 @@ def generate_rc_file(title, host, ca, port, password, proxy, subject):
     conn_param.append('type=spice' + '\n')
     conn_param.append('toggle-fullscreen=Shift+F11' + '\n')
     conn_param.append('title=' + title + '\n')
-    conn_param.append('tls-port=' + port + '\n')
+    conn_param.append('tls-port=' + str(port) + '\n')
     conn_param.append('host=' + host + '\n')
-    conn_param.append('ca=' + ca + '\n')
+    conn_param.append('ca=' + cert + '\n')
     conn_param.append('host-subject=' + subject + '\n')
     conn_param.append('password=' + password + '\n')
     conn_param.append('proxy=' + proxy + '\n')
