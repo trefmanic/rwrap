@@ -172,6 +172,12 @@ def get_pve_cookies(api_url, username, password):
                                         data=payload)
     # Checking server response
     if not pve_ticket_response.ok:
+        if pve_ticket_response.status_code == 401:
+            # Every time...
+            raise ConnectionError ('PVE proxy returned HTTP code ' +
+                                   str(pve_ticket_response.status_code) +\
+                                   '\n\n' + 'Check if you\'ve provided your' +\
+                                    ' username as user@realm')
         raise ConnectionError('PVE proxy returned HTTP code ' +
                               str(pve_ticket_response.status_code))
 
