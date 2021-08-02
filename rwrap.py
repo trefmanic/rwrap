@@ -1,9 +1,9 @@
 #!/usr/bin/python3
-'''rpspice - a Proxmox PVE SPICE wrapper for Remmina
+'''rpspice - a Proxmox PVE SPICE wrapper for remote-viewer
 
 Uses SSH tunneling to connect to SPICE-enabled VMs, which are
 running inside Proxmox PVE.
-Requirements: remmina, remmina-plugin-spice, python3,
+Requirements: virt-viewer (provides remote-viewer), python3,
               python3-crypto, subprocess, tempfile
 
 Credits:
@@ -81,7 +81,7 @@ def main():
                                             json_data['password'], json_data['proxy'],
                                             json_data['host-subject'])
 
-    # 6) Starting Remmina subprocess
+    # 6) Starting remove-viewer subprocess
     with open(os.devnull, 'w') as devnull:
         try:
 
@@ -90,7 +90,7 @@ def main():
             output.check_returncode()
 
         except subprocess.CalledProcessError:
-            print("Error: Remmina subprocess terminated")
+            print("Error: remove-viewer subprocess terminated")
 
 
 def parse_arguments():
@@ -235,7 +235,7 @@ def get_node_info(api_url, pve_cookie, vmname=None, vmid=None):
                 vminfo['id'] = true_id
                 vminfo['node'] = item['node']
     if not vminfo:
-        # Not name nor id foud
+        # Not name nor id found
         raise BaseException("VM not found in cluster")
     return vminfo
 
@@ -252,22 +252,22 @@ def get_spice_info(pve_spice_url, pve_cookie, pve_header):
 
 def generate_rc_file(title, host, cert, port,
                      password, proxy, subject):
-    '''Makes connection file for Remmina
+    '''Makes connection file for remote-viewer
 
     Generates and returns file name of a temporary
-    Remmina connection file.
+    remote-viewer connection file.
 
     Arguments:
         node_name {string} -- A name of a node, which runs selected VM
         node_fqdn {string} -- Fully Qualified Domain Name of a node
         ca_file_name {string} -- A name of generated CA file
         port {string} -- Port of a SPICE interface in a node
-        password (string) -- Password, ecnrypted for Remmina
+        password (string) -- Password, ecnrypted for remote-viewer
 
     Returns:
         string -- Connection file name
     '''
-    # Creating a list for Remmina settings
+    # Creating a list for remote-viewer settings
     conn_param = []
     # Filling in parameters...
     # Common settings
